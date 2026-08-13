@@ -29,6 +29,7 @@ int main(int argc, char *argv[]) {
     hints.ai_socktype = SOCK_STREAM;
 
     // getaddrinfo performs DNS lookup as well, so passing example.net as an argument will return an IP address.
+    // TODO: pass port arugment for service in getaddrinfo "argv[2]" i.e. 23 or telnet. cat /etc/services for full list of services
     if ((status = getaddrinfo(argv[1], NULL, &hints, &servinfo)) != 0) {
         fprintf(stderr, "gai error: %s\n", gai_strerror(status));
         return 2;
