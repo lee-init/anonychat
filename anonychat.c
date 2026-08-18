@@ -17,16 +17,15 @@ int main(int argc, char *argv[]) {
     
     int status;
     int sockfd;
+    socklen_t addr_len;
     struct addrinfo hints, *p, *servinfo; // points to results linked list from getaddrinfo
+    struct sockaddr_storage *their_addr; // This is will store incomming connection address (server code for listening / accepting)
     
-
-    printf("Attempting to connec to host: %s on port %s\n", argv[1], argv[2]);
 
     /*
         memset is used to fill a block of memory:    
         (pointer to memory [&hints is the memory address of hints], value to set, number of bytes to set to the value)        
     */
-    
     memset(&hints, 0, sizeof hints);
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
@@ -57,7 +56,9 @@ int main(int argc, char *argv[]) {
         simply having bind(sockfd, p->ai_addr, p->ai_addrlen) won't work. Running this will give a segmentation fault (core dump)
         This is because p is empty, you need to itterate through the linked list returned from getaddrinfo (&servinfo is the linked list)
     */ 
+    
     for (p = servinfo; p != NULL; p = p->ai_next) {
+        printf("Attempting to connec to host: %s on port %s\n", argv[1], argv[2]);
 
         /*
             Might not need bind if we don't care what our local port is. Removing bind() means the kernel will choose a local port for us
@@ -74,7 +75,41 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
     }
- 
+
+    for (p = servinfo; p != NULL; p = p->ai_next) {
+
+        // Need to call bind before listen so the server is running on a specific port
+        if (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
+            perror("Failed to bind");
+            close(sockfd);
+            exit(EXIT_FAILURE);
+        }
+
+        if (listen(sockfd, 1) < 0) {
+            perror("Cannot listen on that socket");
+            close(sockfd);
+            exit(EXIT_FAILURE);
+        }
+
+        addr_len = sizeof &their_addr;
+        // their_addr needs to be typecast to sockaddr
+        if (accept(sockfd, (struct sockaddr *)&their_addr, &addr_len) < 0) {
+            perror("Cannot accept a connection from that host / on that port");
+            close(sockfd);
+            exit(EXIT_FAILURE);
+        }
+
+        char *msg = "Lee was here!";
+        int len, bytes_sent;
+        len = strlen(msg);
+        send(sockfd, msg, len, 0);
+        
+        if (recv(sockfd, msg, len, 0) < 0) {
+            perror("Couldn't recieve message");
+            close(sockfd);
+            exit(EXIT_FAILURE);
+        }
+    }
 
     /*
         TODO: reuse port if in use
@@ -86,9 +121,9 @@ int main(int argc, char *argv[]) {
         This piece of code simply returns information abot a given IP / domain
 
         printf("IP addresses for %s:\n\n", argv[1]);
-        
-        char ipstr[INET6_ADDRSTRLEN];
 
+        char ipstr[INET6_ADDRSTRLEN];
+        
         for(p = servinfo; p != NULL; p = p->ai_next) {
             void *addr;
             char *ipver;
