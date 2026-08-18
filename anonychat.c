@@ -10,26 +10,27 @@
 
 int main(int argc, char *argv[]) {
     
-    int connect_to, listen_for = 0;
+    int connect_listen = 0;
 
-    if (argc != 2) {
-        fprintf(stderr, "usage: anonychat connect/listn\n");
+    if (argc < 2) {
+        fprintf(stderr, "usage: anonychat connect/listen\n");
         return 1;
+
+        if (strcmp(argv[1], "connect") == 0) {
+            connect_listen = 1;
+            if (argc != 4) {
+                fprintf(stderr, "usage: anonychat connect hostname port\n");
+                return 1;
+            }
+        } else {
+            connect_listen = 2;
+            if (argc != 3) {
+                fprintf(stderr, "usage: anonychat listen port\n");
+                return 1;
+            }
+        }
     }
 
-    if (strcmp(argv[1], "connect") == 0) {
-        connect_to = 1;
-        if (argc != 4) {
-            fprintf(stderr, "usage: anonychat connect hostname port\n");
-            return 1;
-        }
-    } else {
-        listen_for = 1;
-        if (argc != 3) {
-            fprintf(stderr, "usage: anonychat listen port\n");
-            return 1;
-        }
-    }
 
 
     
@@ -74,7 +75,7 @@ int main(int argc, char *argv[]) {
         simply having bind(sockfd, p->ai_addr, p->ai_addrlen) won't work. Running this will give a segmentation fault (core dump)
         This is because p is empty, you need to itterate through the linked list returned from getaddrinfo (&servinfo is the linked list)
     */ 
-    if (connect_to) {
+    if (connect_listen == 1) {
         for (p = servinfo; p != NULL; p = p->ai_next) {
             printf("Attempting to connec to host: %s on port %s\n", argv[1], argv[2]);
     
@@ -95,7 +96,7 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    if (listen_for) {
+    if (connect_listen == 2) {
         for (p = servinfo; p != NULL; p = p->ai_next) {
     
             // Need to call bind before listen so the server is running on a specific port
