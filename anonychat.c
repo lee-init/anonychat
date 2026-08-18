@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
     int status;
     int sockfd;
     struct addrinfo hints, *p, *servinfo; // points to results linked list from getaddrinfo
-    char ipstr[INET6_ADDRSTRLEN];
+    
 
     printf("Attempting to connec to host: %s on port %s\n", argv[1], argv[2]);
 
@@ -87,6 +87,8 @@ int main(int argc, char *argv[]) {
 
         printf("IP addresses for %s:\n\n", argv[1]);
         
+        char ipstr[INET6_ADDRSTRLEN];
+
         for(p = servinfo; p != NULL; p = p->ai_next) {
             void *addr;
             char *ipver;
