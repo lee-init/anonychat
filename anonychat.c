@@ -10,10 +10,28 @@
 
 int main(int argc, char *argv[]) {
     
-    if (argc != 3) {
-        fprintf(stderr, "usage: anonychat hostname port\n");
+    int connect_to, listen_for = 0;
+
+    if (argc != 2) {
+        fprintf(stderr, "usage: anonychat connect/listn\n");
         return 1;
     }
+
+    if (strcmp(argv[1], "connect") == 0) {
+        connect_to = 1;
+        if (argc != 4) {
+            fprintf(stderr, "usage: anonychat connect hostname port\n");
+            return 1;
+        }
+    } else {
+        listen_for = 1;
+        if (argc != 3) {
+            fprintf(stderr, "usage: anonychat listen port\n");
+            return 1;
+        }
+    }
+
+
     
     int status;
     int sockfd;
@@ -32,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     // getaddrinfo performs DNS lookup as well, so passing example.net as an argument will return an IP address.
     // TODO: pass port arugment for service in getaddrinfo "argv[2]" i.e. 23 or telnet. cat /etc/services for full list of services
-    if ((status = getaddrinfo(argv[1], argv[2], &hints, &servinfo)) != 0) {
+    if ((status = getaddrinfo(argv[2], argv[3], &hints, &servinfo)) != 0) {
         fprintf(stderr, "gai error: %s\n", gai_strerror(status));
         return 2;
     }
@@ -56,58 +74,66 @@ int main(int argc, char *argv[]) {
         simply having bind(sockfd, p->ai_addr, p->ai_addrlen) won't work. Running this will give a segmentation fault (core dump)
         This is because p is empty, you need to itterate through the linked list returned from getaddrinfo (&servinfo is the linked list)
     */ 
+    if (connect_to) {
+        for (p = servinfo; p != NULL; p = p->ai_next) {
+            printf("Attempting to connec to host: %s on port %s\n", argv[1], argv[2]);
     
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-        printf("Attempting to connec to host: %s on port %s\n", argv[1], argv[2]);
+            /*
+                Might not need bind if we don't care what our local port is. Removing bind() means the kernel will choose a local port for us
+                if (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
+                    perror("Failed to bind");
+                    close(sockfd);
+                    exit(EXIT_FAILURE);
+                }
+            */
+    
+            if (connect(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
+                perror("Failed to connect");
+                close(sockfd);
+                exit(EXIT_FAILURE);
+            }
+        }
+    }
 
-        /*
-            Might not need bind if we don't care what our local port is. Removing bind() means the kernel will choose a local port for us
+    if (listen_for) {
+        for (p = servinfo; p != NULL; p = p->ai_next) {
+    
+            // Need to call bind before listen so the server is running on a specific port
             if (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
                 perror("Failed to bind");
                 close(sockfd);
                 exit(EXIT_FAILURE);
             }
-        */
-
-        if (connect(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
-            perror("Failed to connect");
-            close(sockfd);
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    for (p = servinfo; p != NULL; p = p->ai_next) {
-
-        // Need to call bind before listen so the server is running on a specific port
-        if (bind(sockfd, p->ai_addr, p->ai_addrlen) < 0) {
-            perror("Failed to bind");
-            close(sockfd);
-            exit(EXIT_FAILURE);
-        }
-
-        if (listen(sockfd, 1) < 0) {
-            perror("Cannot listen on that socket");
-            close(sockfd);
-            exit(EXIT_FAILURE);
-        }
-
-        addr_len = sizeof &their_addr;
-        // their_addr needs to be typecast to sockaddr
-        if (accept(sockfd, (struct sockaddr *)&their_addr, &addr_len) < 0) {
-            perror("Cannot accept a connection from that host / on that port");
-            close(sockfd);
-            exit(EXIT_FAILURE);
-        }
-
-        char *msg = "Lee was here!";
-        int len, bytes_sent;
-        len = strlen(msg);
-        send(sockfd, msg, len, 0);
-        
-        if (recv(sockfd, msg, len, 0) < 0) {
-            perror("Couldn't recieve message");
-            close(sockfd);
-            exit(EXIT_FAILURE);
+    
+            if (listen(sockfd, 1) < 0) {
+                perror("Cannot listen on that socket");
+                close(sockfd);
+                exit(EXIT_FAILURE);
+            }
+    
+            addr_len = sizeof &their_addr;
+            // their_addr needs to be typecast to sockaddr
+            if (accept(sockfd, (struct sockaddr *)&their_addr, &addr_len) < 0) {
+                perror("Cannot accept a connection from that host / on that port");
+                close(sockfd);
+                exit(EXIT_FAILURE);
+            }
+    
+            char *msg = "Lee was here!";
+            int len, bytes_sent;
+            len = strlen(msg);
+            bytes_sent = send(sockfd, msg, len, 0);
+            if (bytes_sent < 0) {
+                perror("Couldn't send data");
+                close(sockfd);
+                exit(EXIT_FAILURE);
+            }
+            
+            if (recv(sockfd, msg, len, 0) < 0) {
+                perror("Couldn't recieve data");
+                close(sockfd);
+                exit(EXIT_FAILURE);
+            }
         }
     }
 
